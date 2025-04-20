@@ -1,0 +1,69 @@
+services:
+    nginx:
+      build: ./nginx
+      depends_on:
+        - frontend
+        - backend
+      image: nginx
+      ports:
+        - 80:80
+      volumes:
+        - ./nginx.conf:/etc/nginx/nginx.conf
+        - ../frontend/nginx.conf:/var/www/html
+      networks:
+        - app-network
+    backend:
+      container_name: backend
+      image: backend-image
+      build: ./backend
+      expose: 
+        - "8080"
+      environment:
+        - REQUEST_ORIGIN=http://frontend:80
+        - REDIS_HOST=cache
+        - POSTGRES_HOST=db
+        - POSTGRES_PASSWORD=postgres
+      depends_on:
+        - cache
+        - db
+      networks:
+        - app-network
+    frontend: 
+      container_name: frontend
+      image: frontend-image
+      build: ./frontend
+      environment:
+        - REACT_APP_BACKEND_URL=http://backend:8080
+      expose: 
+        - "80"
+      networks:
+        - app-network
+    cache: 
+      image: redis:7.4-alpine
+      build: ./cache
+      restart: unless-stopped
+      #command: redis-server --save 20 1
+      volumes:
+        - cache:/data
+      networks:
+        - app-network
+    db:
+      container_name: postgres
+      image: postgres:alpine
+      build: ./database
+      restart: unless-stopped
+      environment:
+        - POSTGRES_USER=postgres
+        - POSTGRES_PASSWORD=postgres
+        - POSTGRES_DATABASE=postgres
+      volumes:
+        - ./database:/var/lib/postgresql/data
+      networks:
+        - app-network
+volumes:
+    cache:
+      driver: local
+    database:
+    nginx:
+networks:
+    app-network:
